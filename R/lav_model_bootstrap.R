@@ -43,7 +43,7 @@ do_model_based_para_boot <- function(
     err_var_vec = err_var_vec
   )
 
-  obj_sub <- create_lav_sub_objects_mod_boot(
+  obj_sub <- create_sub_obj_mod_boot(
     se = tmp_fit@Options$se,
     information = tmp_fit@Options$information,
     par_table = fit@ParTable,
@@ -51,7 +51,7 @@ do_model_based_para_boot <- function(
     boot_vcov = boot_vcov
   )
 
-  result <- create_lav_object_fit_mod_boot(
+  result <- create_lav_object_mod_boot(
     fit = fit,
     tmp_fit = tmp_fit,
     obj_sub = obj_sub
@@ -59,7 +59,7 @@ do_model_based_para_boot <- function(
   return(result)
 }
 
-create_lav_sub_objects_mod_boot <- function(
+create_sub_obj_mod_boot <- function(
     se, information, par_table, model, boot_vcov) {
   lavvcov <- list(
     se = se,
@@ -81,7 +81,7 @@ create_lav_sub_objects_mod_boot <- function(
   return(ret)
 }
 
-create_lav_object_fit_mod_boot <- function(fit, tmp_fit, obj_sub) {
+create_lav_object_mod_boot <- function(fit, tmp_fit, obj_sub) {
   boot_fit <- new(
     "lavaan",
     version      = as.character(packageVersion("lavaan")),
