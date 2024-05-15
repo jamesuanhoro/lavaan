@@ -85,6 +85,9 @@ export("lavaan", "cfa", "sem", "growth",
        "lavPredictY",
        "lavCor",
 
+       # custom model-based bootstrap
+       do_model_based_para_boot,
+
        # API functions
 
        # lav_matrix

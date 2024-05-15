@@ -38,6 +38,9 @@ bootstrapLavaan <- function(object,
                             cl = NULL,
                             iseed = NULL,
                             h0.rmsea = NULL,
+                            boot_model = NULL,
+                            boot_param = NULL,
+                            err_var_vec = NULL,
                             ...) {
   # checks
   type. <- tolower(type) # overwritten if nonparametric
@@ -90,6 +93,9 @@ bootstrapLavaan <- function(object,
     FUN = FUN,
     keep.idx = keep.idx,
     h0.rmsea = h0.rmsea,
+    boot_model = boot_model,
+    boot_param = boot_param,
+    err_var_vec = err_var_vec,
     ...
   )
 
@@ -126,6 +132,9 @@ lav_bootstrap_internal <- function(object = NULL,
                                    keep.idx = FALSE,
                                    # return.boot     = FALSE,
                                    h0.rmsea = NULL,
+                                   boot_model = NULL,
+                                   boot_param = NULL,
+                                   err_var_vec = NULL,
                                    ...) {
   # warning: avoid use of 'options', 'sample' (both are used as functions
   # below...
@@ -334,9 +343,32 @@ lav_bootstrap_internal <- function(object = NULL,
       )
     } else { # parametric!
       for (g in 1:lavdata@ngroups) {
+        pop_c_mat <- Sigma.hat[[g]]
+        dim_p <- nrow(pop_c_mat)
+        if (!is.null(boot_model)) {
+          stopifnot(!is.null(boot_param))
+          if (boot_model == "crmr") {
+            stopifnot(!is.null(err_var_vec))
+            err_sd_diag <- diag(sqrt(err_var_vec))
+            u_eta <- (
+              (1 / (boot_param / (mean(err_var_vec) / 1)))^2 - (dim_p - 1)
+            ) / 2
+            err_mat_r <- rlkjcorr_lav_internal(1, dim_p, u_eta)
+            err_mat_c <- err_sd_diag %*% err_mat_r %*% err_sd_diag
+            diag(err_mat_c) <- 0
+            pop_c_mat <- Sigma.hat[[g]] + err_mat_c
+          } else if (boot_model == "rmsea") {
+            wb_m <- 1 / boot_param^2 + dim_p - 1
+            dgp_sigma <- (wb_m - dim_p - 1) / wb_m * Sigma.hat[[g]]
+            # use MASS::ginv?
+            pop_c_mat <- solve(
+              rWishart(1, wb_m, solve(wb_m * dgp_sigma))[, , 1]
+            )
+          }
+        }
         dataX[[g]] <- MASS::mvrnorm(
           n = lavdata@nobs[[g]],
-          Sigma = Sigma.hat[[g]],
+          Sigma = pop_c_mat,
           mu = Mu.hat[[g]]
         )
       }
@@ -611,4 +643,36 @@ lav_bootstrap_internal <- function(object = NULL,
   #    }
   #
   t.star
+}
+
+rlkjcorr_lav_internal <- function(n, p, eta = 1) {
+  # copied from rethinking::rlkjcorr
+  stopifnot(is.numeric(p), p >= 2, p == as.integer(p))
+  stopifnot(eta > 0)
+  f <- function() {
+    alpha <- eta + (p - 2) / 2
+    r12 <- 2 * rbeta(1, alpha, alpha) - 1
+    r_mat <- matrix(0, p, p)
+    r_mat[1, 1] <- 1
+    r_mat[1, 2] <- r12
+    r_mat[2, 2] <- sqrt(1 - r12^2)
+    if (p > 2) {
+      for (m in 2:(p - 1)) {
+        alpha <- alpha - 0.5
+        y <- rbeta(1, m / 2, alpha)
+        z <- rnorm(m, 0, 1)
+        z <- z / sqrt(crossprod(z)[1])
+        r_mat[1:m, m + 1] <- sqrt(y) * z
+        r_mat[m + 1, m + 1] <- sqrt(1 - y)
+      }
+    }
+    return(crossprod(r_mat))
+  }
+  r_mat <- replicate(n, f())
+  if (dim(r_mat)[3] == 1) {
+    r_mat <- r_mat[, , 1]
+  } else {
+    r_mat <- aperm(r_mat, c(3, 1, 2))
+  }
+  return(r_mat)
 }

@@ -6,7 +6,11 @@ lav_model_nvcov_bootstrap <- function(lavmodel = NULL,
                                       lavh1 = NULL,
                                       lavdata = NULL,
                                       lavcache = NULL,
-                                      lavpartable = NULL) {
+                                      lavpartable = NULL,
+                                      boot_type = NULL,
+                                      boot_model = NULL,
+                                      boot_param = NULL,
+                                      err_var_vec = NULL) {
   # number of bootstrap draws
   if (!is.null(lavoptions$bootstrap)) {
     R <- lavoptions$bootstrap
@@ -14,12 +18,20 @@ lav_model_nvcov_bootstrap <- function(lavmodel = NULL,
     R <- 1000L
   }
 
-  boot.type <- "ordinary"
+  boot.type <- boot_type
   if ("bollen.stine" %in% lavoptions$test) {
     boot.type <- "bollen.stine"
   }
 
   TEST <- NULL
+
+  if (!is.null(boot_model)) {
+    stopifnot(!is.null(boot_param))
+    if (boot_model == "crmr") {
+      stopifnot(!is.null(err_var_vec))
+    }
+  }
+
   COEF <- lav_bootstrap_internal(
     object = NULL,
     lavmodel. = lavmodel,
@@ -33,7 +45,10 @@ lav_model_nvcov_bootstrap <- function(lavmodel = NULL,
     type = boot.type,
     FUN = ifelse(boot.type == "bollen.stine",
       "coeftest", "coef"
-    )
+    ),
+    boot_model = boot_model,
+    boot_param = boot_param,
+    err_var_vec = err_var_vec
   )
   # warn            = -1L)
   COEF.orig <- COEF
@@ -433,7 +448,11 @@ lav_model_vcov <- function(lavmodel = NULL,
                            lavcache = NULL,
                            lavimplied = NULL,
                            lavh1 = NULL,
-                           use.ginv = FALSE) {
+                           use.ginv = FALSE,
+                           boot_type = NULL,
+                           boot_model = NULL,
+                           boot_param = NULL,
+                           err_var_vec = NULL) {
   likelihood <- lavoptions$likelihood
   information <- lavoptions$information[1] # first one is for vcov
   se <- lavoptions$se
@@ -520,7 +539,11 @@ lav_model_vcov <- function(lavmodel = NULL,
         lavimplied = lavimplied,
         lavh1 = lavh1,
         lavcache = lavcache,
-        lavpartable = lavpartable
+        lavpartable = lavpartable,
+        boot_type = boot_type,
+        boot_model = boot_model,
+        boot_param = boot_param,
+        err_var_vec = err_var_vec
       ),
       silent = TRUE
     )
